@@ -74,7 +74,7 @@ function deploy {
 		rm build.tar.gz
 
 		# stop app process
-		service stop "$app_name" > /dev/null 2>&1
+		initctl stop "$app_name" > /dev/null 2>&1
 
 		# report app stop status
 		if [ \$? -eq 0 ]; then
@@ -94,7 +94,7 @@ function deploy {
 		ln -sfn "$config_path/current/$config_upstart" "/etc/init/$app_name.conf"
 
 		# start app process
-		service start "$app_name" > /dev/null 2>&1
+		initctl start "$app_name" > /dev/null 2>&1
 
 		# report new app status
 		if [ \$? -eq 0 ]; then
