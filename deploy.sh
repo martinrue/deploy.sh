@@ -93,6 +93,9 @@ function deploy {
 		# update symlink to upstart config
 		ln -sfn "$config_path/current/$config_upstart" "/etc/init/$app_name.conf"
 
+		# reload upstart config to detect symlink
+		initctl reload-configuration
+
 		# start app process
 		initctl start "$app_name" > /dev/null 2>&1
 
