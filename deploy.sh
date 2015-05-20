@@ -12,7 +12,7 @@ config_nginx_path="/etc/nginx/sites-enabled" # server location of nginx config f
 
 # internal build variables
 base=$(pwd -P)
-repo=$(uuidgen | tr 'A-Z' 'a-z')
+repo=$(git ls-remote "$config_repo" | grep refs/heads/master | cut -f1)
 
 function cleanup {
 	# remove all files generated during build
@@ -68,11 +68,6 @@ function deploy {
 
 	# execute server-side deploy
 	ssh "$config_server" "bash -s" <<-SCRIPT
-		# extract build
-		cd "$config_path"
-		tar -mxzf build.tar.gz
-		rm build.tar.gz
-
 		# stop app process
 		initctl stop "$app_name" > /dev/null 2>&1
 
@@ -82,6 +77,14 @@ function deploy {
 		else
 			echo "warn: $app_name is not running on server"
 		fi
+
+		# remove duplicate in case of multiple deploys of same SHA
+		rm -rf "$config_path/$repo"
+
+		# extract build
+		cd "$config_path"
+		tar -mxzf build.tar.gz
+		rm build.tar.gz
 
 		# symlink latest build to current
 		ln -sfn "$config_path/$repo" "$config_path/current"
