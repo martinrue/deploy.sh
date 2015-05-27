@@ -8,7 +8,7 @@ config_buildcmd="npm install --production"   # local build command
 config_path="/var/www/app"                   # path on server to deploy to
 config_upstart="deploy/app.conf"             # relative location of upstart config file
 config_nginx="deploy/app"                    # relative location of nginx config file
-config_nginx_path="/etc/nginx/sites-enabled" # server location of nginx config file
+config_nginx_path="/etc/nginx/conf.d"        # server location of nginx config file
 
 # internal build variables
 base=$(pwd -P)
@@ -128,7 +128,7 @@ function deploy {
 
 # set default config values
 config_port=${config_port:-"22"}
-config_nginx_path=${config_nginx_path:-"/etc/nginx/sites-enabled"}
+config_nginx_path=${config_nginx_path:-"/etc/nginx/conf.d"}
 
 echo "info: creating build $repo"
 create_build

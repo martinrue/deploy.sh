@@ -11,9 +11,9 @@ The recommended structure is to have a `deploy` directory at the root of your pr
 ```
 project
 |-- deploy
-|   |-- deploy.sh # executable deploy script
-|   |-- app.conf  # upstart config file
-|   |-- app       # nginx config file
+|   |-- deploy.sh   # executable deploy script
+|   |-- app-u.conf  # upstart config file
+|   |-- app-n.conf  # nginx config file
 ```
 
 To create the recommended structure, run the following from within your project directory:
@@ -39,7 +39,7 @@ The `config_` variables on [lines 4 through 11](https://github.com/martinrue/dep
 | `config_path`       | The path on the server that the app should be deployed to, e.g. `/var/www/app`. | Yes |
 | `config_upstart`    | The relative path (from the root of the project) of the upstart config file, e.g. `deploy/app.conf`. | Yes |
 | `config_nginx`      | The relative path (from the root of the project) of the nginx config file, e.g. `deploy/app`. If this is not set, nginx setup will be skipped. | No |
-| `config_nginx_path` | Set if you need to override the nginx config path, defaults to `/etc/nginx/sites-enabled`. | No |
+| `config_nginx_path` | Set if you need to override the nginx config path, defaults to `/etc/nginx/conf.d`. | No |
 
 ### Deploying
 
@@ -54,3 +54,5 @@ info: deploying
 
 ### Limitations
 As `config_buildcmd` is run locally, the local machine must be capable of producing a build for the remote machine. An example of where this becomes a limitation is when you're developing on OS X but deploying to a Linux server and your project uses an NPM module that requires native compilation. In this case, `deploy.sh` will not be much use to you.
+
+Nginx version 1.8+ is assumed, which means the `config_nginx_path` defaults to `/etc/nginx/conf.d` and your nginx config file must end with `.conf`. If you're deploying to an older version of nginx, you'll have to modify the script to use `sites-enabled`.
