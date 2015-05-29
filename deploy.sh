@@ -4,7 +4,8 @@
 config_server="root@host"                    # server to deploy to
 config_port="22"                             # SSH port to use, defaults to 22
 config_repo="git@github.com:user/app.git"    # git repo to clone when creating a build
-config_buildcmd="npm install --production"   # local build command
+config_localcmd="npm install --production"   # local command run before deploy
+config_remotecmd=""                          # remote command run after deploy
 config_path="/var/www/app"                   # path on server to deploy to
 config_upstart="deploy/app.conf"             # relative location of upstart config file
 config_nginx="deploy/app"                    # relative location of nginx config file
@@ -41,10 +42,10 @@ function create_build {
 	git clone -q "$config_repo" "$base/build/$repo" > /dev/null 2>&1
 	check_error "clone failed: $config_repo"
 
-	# clean repo and run custom build command
+	# clean repo and run local command
 	clean_repo
-	eval "$config_buildcmd" > /dev/null 2>&1
-	check_error "build cmd failed: $config_buildcmd"
+	eval "$config_localcmd" > /dev/null 2>&1
+	check_error "local command failed: $config_localcmd"
 
 	# archive build into tar.gz
 	cd "$base/build"
@@ -95,6 +96,15 @@ function deploy {
 
 		# update symlink to upstart config
 		ln -sfn "$config_path/current/$config_upstart" "/etc/init/$app_name.conf"
+
+		# run remote command
+		cd "$config_path/current"
+		eval "$config_remotecmd" > /dev/null 2>&1
+
+		if [ \$? -ne 0 ]; then
+			echo "error: remote command failed: $config_remotecmd"
+			exit 1
+		fi
 
 		# reload upstart config to detect symlink
 		initctl reload-configuration
