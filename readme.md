@@ -21,8 +21,8 @@ To create the recommended structure, run the following from within your project 
 ```shell
 mkdir deploy && \
 cd deploy && \
-echo upstart config stub > app.conf && \
-echo nginx config stub > app && \
+echo upstart config stub > app-u.conf && \
+echo nginx config stub > app-n.conf && \
 curl -O https://raw.githubusercontent.com/martinrue/deploy.sh/master/deploy.sh && \
 chmod +x deploy.sh
 ```
