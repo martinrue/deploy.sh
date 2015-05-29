@@ -53,11 +53,11 @@ function create_build {
 
 function upload_build {
 	# create required deployment paths on server if necessary
-	ssh "$config_server" "mkdir -p $config_path && rm -rf $config_path/build.tar.gz"
+	ssh -p $config_port "$config_server" "mkdir -p $config_path && rm -rf $config_path/build.tar.gz"
 	check_error "failed to initialise upload"
 
 	# scp build package to server
-	scp -q "$base/build/build.tar.gz" "$config_server:$config_path" > /dev/null 2>&1
+	scp -P $config_port -q "$base/build/build.tar.gz" "$config_server:$config_path" > /dev/null 2>&1
 	check_error "failed to upload build"
 }
 
@@ -67,7 +67,7 @@ function deploy {
 	local nginx_config_name=$(basename $config_nginx)
 
 	# execute server-side deploy
-	ssh "$config_server" "bash -s" <<-SCRIPT
+	ssh -p $config_port "$config_server" "bash -s" <<-SCRIPT
 		# stop app process
 		initctl stop "$app_name" > /dev/null 2>&1
 
