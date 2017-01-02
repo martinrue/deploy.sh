@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # deployment config
-config_server="root@host"                    # server to deploy to
+config_server="user@host"                    # server to deploy to
 config_port="22"                             # SSH port to use, defaults to 22
-config_repo="git@github.com:user/app.git"    # git repo to clone when creating a build
+config_repo="git@github.com:user/repo.git"   # git repo to clone when creating a build
 config_localcmd="npm install --production"   # local command run before deploy
 config_remotecmd=""                          # remote command run after deploy
 config_path="/var/www/app"                   # path on server to deploy to
-config_upstart="deploy/app.conf"             # relative location of upstart config file
-config_nginx="deploy/app"                    # relative location of nginx config file
+config_systemd="deploy/app.service"          # relative location of systemd service file
+config_nginx="deploy/app.conf"               # relative location of nginx config file
 config_nginx_path="/etc/nginx/conf.d"        # server location of nginx config file
 
 # internal build variables
@@ -23,14 +23,14 @@ function cleanup {
 function clean_repo {
 	# remove files that should not be included in deploy
 	cd "$base/build/$repo"
-	rm -rf .git .gitignore .jshintrc
+	rm -rf .git .gitignore
 }
 
 function check_error {
 	# check if last command failed
 	if [ $? -ne 0 ]; then
 		# display error and exit if so
-		echo "fail: $1"
+		echo "error: $1"
 		cleanup
 		exit 1
 	fi
@@ -39,7 +39,7 @@ function check_error {
 function create_build {
 	# create temporary build directory and clone repo
 	mkdir -p "$base/build"
-	git clone -q "$config_repo" "$base/build/$repo" > /dev/null 2>&1
+	git clone --quiet "$config_repo" "$base/build/$repo"
 	check_error "clone failed: $config_repo"
 
 	# clean repo and run local command
@@ -63,14 +63,14 @@ function upload_build {
 }
 
 function deploy {
-	# work out filenames for nginx and upstart configs
-	local app_name=$(basename -s .conf $config_upstart)
-	local nginx_config_name=$(basename $config_nginx)
+	local app_name=$(basename -s .service $config_systemd)
+	local service_file=$(basename $config_systemd)
+	local nginx_file=$(basename $config_nginx)
 
 	# execute server-side deploy
 	ssh -p $config_port "$config_server" "bash -s" <<-SCRIPT
 		# stop app process
-		initctl stop "$app_name" > /dev/null 2>&1
+		systemctl stop "$service_file" > /dev/null 2>&1
 
 		# report app stop status
 		if [ \$? -eq 0 ]; then
@@ -90,12 +90,20 @@ function deploy {
 		# symlink latest build to current
 		ln -sfn "$config_path/$repo" "$config_path/current"
 
-		# remove inactive builds
+		# remove everything except the current build
 		shopt -s extglob
 		rm -rf !("$repo"|current)
 
-		# update symlink to upstart config
-		ln -sfn "$config_path/current/$config_upstart" "/etc/init/$app_name.conf"
+		# update systemd service file
+		cp "$config_path/current/$config_systemd" "/etc/systemd/system/$service_file"
+
+		# ensure service starts with system boot
+		systemctl enable "$service_file" > /dev/null 2>&1
+
+		if [ \$? -ne 0 ]; then
+			echo "error: failed to enable service"
+			exit 1
+		fi
 
 		# run remote command
 		cd "$config_path/current"
@@ -106,30 +114,30 @@ function deploy {
 			exit 1
 		fi
 
-		# reload upstart config to detect symlink
-		initctl reload-configuration
+		# start service
+		systemctl start "$service_file" > /dev/null 2>&1
 
-		# start app process
-		initctl start "$app_name" > /dev/null 2>&1
+		# wait 5s and check app is still alive
+		sleep 5
+		systemctl status "$service_file" > /dev/null 2>&1
 
-		# report new app status
 		if [ \$? -eq 0 ]; then
 			echo "info: $app_name started"
 		else
-			echo "fail: $app_name failed to start"
+			echo "error: $app_name failed to start"
 			exit 1
 		fi
 
 		# update symlink to nginx config if required
 		if [ ! -z "$config_nginx" ]; then
-			ln -sfn "$config_path/current/$config_nginx" "$config_nginx_path/$nginx_config_name"
+			ln -sfn "$config_path/current/$config_nginx" "$config_nginx_path/$nginx_file"
 
 			# reload nginx config
 			nginx -s reload > /dev/null 2>&1
 
 			# report nginx config reload fail
 			if [ \$? -ne 0 ]; then
-				echo "fail: nginx reload failed"
+				echo "error: nginx reload failed"
 				exit 1
 			fi
 		fi
